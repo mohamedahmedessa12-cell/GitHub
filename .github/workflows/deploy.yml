@@ -1,0 +1,57 @@
+name: CI/CD Pipeline - AI-NAG Guardian Build & Push
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out source code from GitHub repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Docker Buildx for multi-architecture builds
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Step 3: Log in to Docker Hub using GitHub Secrets
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Step 4: Extract Metadata (Tags & Labels) for Docker Image
+      - name: Extract Docker Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/ai-nag-guardian
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+
+      # Step 5: Build and Push Docker Image to Docker Hub
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Step 6: Success Notification
+      - name: Deployment Status Output
+        run: |
+          echo "🚀 Image-ka AI-NAG Guardian si guul leh ayaa loogu shubay Docker Hub!"
+          echo "📦 Image Tag: ${{ secrets.DOCKERHUB_USERNAME }}/ai-nag-guardian:latest"
